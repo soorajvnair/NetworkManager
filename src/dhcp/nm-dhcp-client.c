@@ -568,7 +568,31 @@ static GBytes *
 get_duid (NMDhcpClient *self)
 {
 	static GBytes *duid = NULL;
+	const char *global_duid_file = NMSTATEDIR "/duid";
+	GBytes *global_duid = NULL;
+	gs_free char *contents = NULL;
+	gs_strfreev char **split = NULL;
 
+	/* First check if a global duid file exists */
+	if (   g_file_test (global_duid_file, G_FILE_TEST_EXISTS)
+	    && g_file_get_contents (global_duid_file, &contents, NULL, NULL)) {
+		split = g_strsplit_set (contents, "\n\r", -1);
+		if (!split[0] || (split[1] != NULL))
+			goto generate;
+
+		global_duid = nm_utils_hexstr2bin (g_strdup (split[0]));
+		if (!global_duid)
+			goto generate;
+
+		if (g_bytes_equal (global_duid, duid)) {
+			g_bytes_unref (global_duid);
+			goto generate;
+		}
+		g_bytes_unref (duid);
+		duid = global_duid;
+	}
+
+generate:
 	if (G_UNLIKELY (!duid))
 		duid = generate_duid_from_machine_id ();
 
