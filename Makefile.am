@@ -3497,7 +3497,8 @@ clients_cli_nmcli_CPPFLAGS = \
 	$(SANITIZER_EXEC_CFLAGS) \
 	-DG_LOG_DOMAIN=\""nmcli"\" \
 	-DNETWORKMANAGER_COMPILATION=NM_NETWORKMANAGER_COMPILATION_CLIENT \
-	-DNMCLI_LOCALEDIR=\"$(datadir)/locale\"
+	-DNMCLI_LOCALEDIR=\"$(datadir)/locale\" \
+	-DNMCONFDIR=\"$(nmconfdir)\"
 
 clients_cli_nmcli_LDADD = \
 	libnm/libnm.la \

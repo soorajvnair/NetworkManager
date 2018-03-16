@@ -455,6 +455,21 @@ usage_networking_connectivity (void)
 }
 
 static void
+usage_networking_duid (void)
+{
+	g_printerr (_("Usage: nmcli networking duid { COMMAND | help }\n"
+	              "\n"
+	              "COMMAND := { show | set | generate | file }\n\n"
+	              "  show\n\n"
+	              "  set <duid value>\n\n"
+	              "  generate [LL | LLT | UUID]\n\n"
+	              "  file\n\n"
+	              "\n"
+	              "Allow to show / set / generate the global DUID or just show the file where the\n"
+	              "global DUID value is stored.\n\n"));
+}
+
+static void
 usage_radio (void)
 {
 	g_printerr (_("Usage: nmcli radio { COMMAND | help }\n\n"
@@ -876,6 +891,41 @@ nmc_switch_parse_on_off (NmCli *nmc, const char *arg1, const char *arg2, gboolea
 	return TRUE;
 }
 
+static gboolean
+nmc_duid_show (NmCli *nmc)
+{
+	gs_free char *duid_text = NULL;
+	gs_free_error GError *error = NULL;
+
+	g_return_val_if_fail (nmc != NULL, FALSE);
+
+	duid_text = nm_utils_duid_show_global (&error);
+	if (error) {
+		g_string_printf (nmc->return_text, _("Error: cannot retrieve global DUID: %s"),
+		                 error->message);
+		nmc->return_value = NMC_RESULT_ERROR_UNKNOWN;
+		return FALSE;
+	}
+
+	g_print ("%s\n", duid_text);
+	return TRUE;
+}
+
+static gboolean
+nmc_duid_set (NmCli *nmc, const char *duid_text)
+{
+	gs_free_error GError *error = NULL;
+
+	if (!nm_utils_duid_write_global (duid_text, &error)) {
+		g_string_printf (nmc->return_text, _("Error: %s.\n"),
+		                 error ? error->message : "DUID cannot be set");
+		nmc->return_value = NMC_RESULT_ERROR_UNKNOWN;
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 static NMCResultCode
 do_networking_on_off (NmCli *nmc, int argc, char **argv, gboolean enable)
 {
@@ -939,6 +989,58 @@ do_networking_connectivity (NmCli *nmc, int argc, char **argv)
 }
 
 static NMCResultCode
+do_networking_duid (NmCli *nmc, int argc, char **argv)
+{
+	const char *user_error = NULL;
+
+	//                 1  duid
+	next_arg (nmc, &argc, &argv, NULL);
+	if (nmc->complete) {
+		if (argc == 1)
+			nmc_complete_strings (*argv, "show", "set", "generate", "file", NULL);
+		return nmc->return_value;
+	}
+
+	if (!argc) {
+		/* no arguments -> get current duid */
+		nmc_duid_show (nmc);
+	} else if (matches (*argv, "show")) {
+		if (next_arg (nmc, &argc, &argv, NULL) == 0)
+			g_printerr (_("Warning: ignoring extra argument '%s'.\n"), argv[0]);
+		nmc_duid_show (nmc);
+	} else if (matches (*argv, "set")) {
+		const char *duid_text;
+
+		if (next_arg (nmc, &argc, &argv, NULL) !=0) {
+			user_error = _("Error: missing DUID value argument.");
+			goto end;
+		}
+		duid_text = *argv;
+
+		if (!nmc_duid_set (nmc, duid_text)) {
+			usage_networking_duid ();
+			goto end;
+		}
+
+		if (next_arg (nmc, &argc, &argv, NULL) == 0)
+			g_printerr (_("Warning: ignoring extra arguments after DUID value '%s'.\n"), duid_text);
+	} else if (matches (*argv, "generate")) {
+		/* TODO nmc_duid_generate */
+		;
+	} else if (matches (*argv, "file")) {
+		g_print ("%s\n", nm_utils_duid_file_get ());
+	}
+
+end:
+	if (user_error) {
+		g_string_printf (nmc->return_text, "%s\n", user_error);
+		nmc->return_value = NMC_RESULT_ERROR_USER_INPUT;
+		usage_networking_duid ();
+	}
+	return nmc->return_value;
+}
+
+static NMCResultCode
 do_networking_show (NmCli *nmc, int argc, char **argv)
 {
 	next_arg (nmc, &argc, &argv, NULL);
@@ -954,6 +1056,7 @@ static const NMCCommand networking_cmds[] = {
 	{ "on",           do_networking_on,           usage_networking_on,           TRUE,   TRUE },
 	{ "off",          do_networking_off,          usage_networking_off,          TRUE,   TRUE },
 	{ "connectivity", do_networking_connectivity, usage_networking_connectivity, TRUE,   TRUE },
+	{ "duid",         do_networking_duid,         usage_networking_duid,         TRUE,   TRUE },
 	{ NULL,           do_networking_show,         usage_networking,              TRUE,   TRUE },
 };
 
