@@ -136,7 +136,8 @@ dhcp4_state_changed (NMDhcpClient *client,
 		                                    &ip4_dev_route_blacklist);
 		if (!nm_ip4_config_commit (existing,
 		                           NM_PLATFORM_GET,
-		                           NM_IP_ROUTE_TABLE_SYNC_MODE_MAIN))
+		                           NM_IP_ROUTE_TABLE_SYNC_MODE_MAIN,
+		                           NULL))
 			_LOGW (LOGD_DHCP4, "failed to apply DHCPv4 config");
 
 		nm_platform_ip4_dev_route_blacklist_set (NM_PLATFORM_GET,

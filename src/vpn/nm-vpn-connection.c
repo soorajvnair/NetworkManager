@@ -1135,7 +1135,8 @@ nm_vpn_connection_apply_config (NMVpnConnection *self)
 			                           nm_netns_get_platform (priv->netns),
 			                           get_route_table (self, AF_INET, FALSE)
 			                             ? NM_IP_ROUTE_TABLE_SYNC_MODE_FULL
-			                             : NM_IP_ROUTE_TABLE_SYNC_MODE_MAIN))
+			                             : NM_IP_ROUTE_TABLE_SYNC_MODE_MAIN,
+			                           NULL))
 				return FALSE;
 			nm_platform_ip4_dev_route_blacklist_set (nm_netns_get_platform (priv->netns),
 			                                         priv->ip_ifindex,

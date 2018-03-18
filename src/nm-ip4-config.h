@@ -169,7 +169,8 @@ void nm_ip4_config_add_dependent_routes (NMIP4Config *self,
 
 gboolean nm_ip4_config_commit (const NMIP4Config *self,
                                NMPlatform *platform,
-                               NMIPRouteTableSyncMode route_table_sync);
+                               NMIPRouteTableSyncMode route_table_sync,
+                               GArray **out_sync_fail_list);
 
 void nm_ip4_config_merge_setting (NMIP4Config *self,
                                   NMSettingIPConfig *setting,
@@ -578,6 +579,15 @@ nm_ip_config_intersect_alloc (const NMIPConfig *a,
 		                                                     (const NMIP6Config *) b,
 		                                                     default_route_metric_penalty);
 	}
+}
+
+static inline gboolean
+nm_ip_config_commit (const NMIPConfig *self,
+                     NMPlatform *platform,
+                     NMIPRouteTableSyncMode route_table_sync,
+                     GArray **out_sync_fail_list)
+{
+	_NM_IP_CONFIG_DISPATCH (self, nm_ip4_config_commit, nm_ip6_config_commit, platform, route_table_sync, out_sync_fail_list);
 }
 
 #endif /* __NETWORKMANAGER_IP4_CONFIG_H__ */

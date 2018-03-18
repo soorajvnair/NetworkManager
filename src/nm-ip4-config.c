@@ -758,7 +758,8 @@ again:
 gboolean
 nm_ip4_config_commit (const NMIP4Config *self,
                       NMPlatform *platform,
-                      NMIPRouteTableSyncMode route_table_sync)
+                      NMIPRouteTableSyncMode route_table_sync,
+                      GArray **out_sync_fail_list)
 {
 	gs_unref_ptrarray GPtrArray *addresses = NULL;
 	gs_unref_ptrarray GPtrArray *routes = NULL;
@@ -789,7 +790,7 @@ nm_ip4_config_commit (const NMIP4Config *self,
 	                                ifindex,
 	                                routes,
 	                                routes_prune,
-	                                NULL))
+	                                out_sync_fail_list))
 		success = FALSE;
 
 	return success;
