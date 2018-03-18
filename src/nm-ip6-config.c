@@ -522,7 +522,7 @@ gboolean
 nm_ip6_config_commit (const NMIP6Config *self,
                       NMPlatform *platform,
                       NMIPRouteTableSyncMode route_table_sync,
-                      GPtrArray **out_temporary_not_available)
+                      GArray **out_sync_fail_list)
 {
 	gs_unref_ptrarray GPtrArray *addresses = NULL;
 	gs_unref_ptrarray GPtrArray *routes = NULL;
@@ -553,7 +553,7 @@ nm_ip6_config_commit (const NMIP6Config *self,
 	                                ifindex,
 	                                routes,
 	                                routes_prune,
-	                                out_temporary_not_available))
+	                                out_sync_fail_list))
 		success = FALSE;
 
 	return success;

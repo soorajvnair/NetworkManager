@@ -10071,7 +10071,7 @@ _rt6_temporary_not_available_timeout (gpointer user_data)
 
 static gboolean
 _rt6_temporary_not_available_set (NMDevice *self,
-                                  GPtrArray *temporary_not_available)
+                                  GArray *sync_fail_list)
 {
 	NMDevicePrivate *priv = NM_DEVICE_GET_PRIVATE (self);
 	IP6RoutesTemporaryNotAvailableData *data;
@@ -10081,8 +10081,8 @@ _rt6_temporary_not_available_set (NMDevice *self,
 	guint i;
 	gboolean success = TRUE;
 
-	if (   !temporary_not_available
-	    || !temporary_not_available->len) {
+	if (   !sync_fail_list
+	    || !sync_fail_list->len) {
 		/* nothing outstanding. Clear tracking the routes. */
 		g_clear_pointer (&priv->rt6_temporary_not_available, g_hash_table_unref);
 		nm_clear_g_source (&priv->rt6_temporary_not_available_id);
@@ -10093,33 +10093,41 @@ _rt6_temporary_not_available_set (NMDevice *self,
 		g_hash_table_iter_init (&iter, priv->rt6_temporary_not_available);
 		while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &data))
 			data->dirty = TRUE;
-	} else {
-		priv->rt6_temporary_not_available = g_hash_table_new_full ((GHashFunc) nmp_object_id_hash,
-		                                                           (GEqualFunc) nmp_object_id_equal,
-		                                                           (GDestroyNotify) nmp_object_unref,
-		                                                           nm_g_slice_free_fcn (IP6RoutesTemporaryNotAvailableData));
 	}
 
 	now_ms = nm_utils_get_monotonic_timestamp_ms ();
 	oldest_ms = now_ms;
 
-	for (i = 0; i < temporary_not_available->len; i++) {
-		const NMPObject *o = temporary_not_available->pdata[i];
+	for (i = 0; i < sync_fail_list->len; i++) {
+		const NMPlatformSyncFailData *fail_data = &g_array_index (sync_fail_list, NMPlatformSyncFailData, i);
+		const NMPObject *o = fail_data->obj;
 
-		data = g_hash_table_lookup (priv->rt6_temporary_not_available, o);
-		if (data) {
-			if (!data->dirty)
-				continue;
-			data->dirty = FALSE;
-			nm_assert (data->timestamp_ms > 0 && data->timestamp_ms <= now_ms);
-			if (now_ms > data->timestamp_ms + MAX_AGE_MS) {
-				/* timeout. Could not add this address. */
-				_LOGW (LOGD_DEVICE, "failure to add IPv6 route: %s",
-				       nmp_object_to_string (o, NMP_OBJECT_TO_STRING_PUBLIC, NULL, 0));
-				success = FALSE;
-			} else
-				oldest_ms = MIN (data->timestamp_ms, oldest_ms);
+		if (NMP_OBJECT_GET_TYPE (o) != NMP_OBJECT_TYPE_IP6_ROUTE)
 			continue;
+		if (fail_data->reason != NM_PLATFORM_SYNC_FAIL_REASON_IP6_ROUTE_TENTATIVE_PREF_SRC)
+			continue;
+
+		if (priv->rt6_temporary_not_available) {
+			data = g_hash_table_lookup (priv->rt6_temporary_not_available, o);
+			if (data) {
+				if (!data->dirty)
+					continue;
+				data->dirty = FALSE;
+				nm_assert (data->timestamp_ms > 0 && data->timestamp_ms <= now_ms);
+				if (now_ms > data->timestamp_ms + MAX_AGE_MS) {
+					/* timeout. Could not add this address. */
+					_LOGW (LOGD_DEVICE, "failure to add IPv6 route: %s",
+					       nmp_object_to_string (o, NMP_OBJECT_TO_STRING_PUBLIC, NULL, 0));
+					success = FALSE;
+				} else
+					oldest_ms = MIN (data->timestamp_ms, oldest_ms);
+				continue;
+			}
+		} else {
+			priv->rt6_temporary_not_available = g_hash_table_new_full ((GHashFunc) nmp_object_id_hash,
+			                                                           (GEqualFunc) nmp_object_id_equal,
+			                                                           (GDestroyNotify) nmp_object_unref,
+			                                                           nm_g_slice_free_fcn (IP6RoutesTemporaryNotAvailableData));
 		}
 
 		data = g_slice_new0 (IP6RoutesTemporaryNotAvailableData);
@@ -10127,16 +10135,22 @@ _rt6_temporary_not_available_set (NMDevice *self,
 		g_hash_table_insert (priv->rt6_temporary_not_available, (gpointer) nmp_object_ref (o), data);
 	}
 
-	g_hash_table_iter_init (&iter, priv->rt6_temporary_not_available);
-	while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &data)) {
-		if (data->dirty)
-			g_hash_table_iter_remove (&iter);
+	if (priv->rt6_temporary_not_available) {
+		g_hash_table_iter_init (&iter, priv->rt6_temporary_not_available);
+		while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &data)) {
+			if (data->dirty)
+				g_hash_table_iter_remove (&iter);
+		}
+		if (g_hash_table_size (priv->rt6_temporary_not_available) == 0)
+			g_clear_pointer (&priv->rt6_temporary_not_available, g_hash_table_unref);
 	}
 
 	nm_clear_g_source (&priv->rt6_temporary_not_available_id);
-	priv->rt6_temporary_not_available_id = g_timeout_add (oldest_ms + MAX_AGE_MS - now_ms,
-	                                                      _rt6_temporary_not_available_timeout,
-	                                                      self);
+	if (priv->rt6_temporary_not_available) {
+		priv->rt6_temporary_not_available_id = g_timeout_add (oldest_ms + MAX_AGE_MS - now_ms,
+		                                                      _rt6_temporary_not_available_timeout,
+		                                                      self);
+	}
 
 	return success;
 }
@@ -10562,16 +10576,16 @@ nm_device_set_ip_config (NMDevice *self,
 			                                         nm_ip_config_get_ifindex (new_config),
 			                                         ip4_dev_route_blacklist);
 		} else {
-			gs_unref_ptrarray GPtrArray *temporary_not_available = NULL;
+			gs_unref_array GArray *sync_fail_list = NULL;
 
 			success = nm_ip6_config_commit (NM_IP6_CONFIG (new_config),
 			                                nm_device_get_platform (self),
 			                                nm_device_get_route_table (self, addr_family, FALSE)
 			                                  ? NM_IP_ROUTE_TABLE_SYNC_MODE_FULL
 			                                  : NM_IP_ROUTE_TABLE_SYNC_MODE_MAIN,
-			                                &temporary_not_available);
+			                                &sync_fail_list);
 
-			if (!_rt6_temporary_not_available_set (self, temporary_not_available))
+			if (!_rt6_temporary_not_available_set (self, sync_fail_list))
 				success = FALSE;
 		}
 	}

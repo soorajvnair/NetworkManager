@@ -739,6 +739,31 @@ typedef enum {
 
 /*****************************************************************************/
 
+typedef enum {
+
+	/* the failure reason tries to indicate why the sync action failed.
+	 * Note that this depends on kernel responses to netlink messages, which
+	 * are not always clear (EINVAL?) or may even be lost during a full
+	 * receive buffer. */
+
+	/* Adding the route failed due to unspecified reason. */
+	NM_PLATFORM_SYNC_FAIL_REASON_UNSPEC,
+
+	/* we guess, that the failure reason is that an IPv6 address specifies
+	 * a pref-src that is still tentative. Kernel doesn't allow that (rh #1457196). */
+	NM_PLATFORM_SYNC_FAIL_REASON_IP6_ROUTE_TENTATIVE_PREF_SRC,
+
+} NMPlatformSyncFailReason;
+
+typedef struct {
+	const NMPObject *obj;
+	NMPlatformSyncFailReason reason;
+} NMPlatformSyncFailData;
+
+GArray *nm_platform_sync_fail_list_new (void);
+
+/*****************************************************************************/
+
 struct _NMPlatformPrivate;
 
 struct _NMPlatform {
@@ -1336,7 +1361,7 @@ gboolean nm_platform_ip_route_sync (NMPlatform *self,
                                     int ifindex,
                                     GPtrArray *routes,
                                     GPtrArray *routes_prune,
-                                    GPtrArray **out_temporary_not_available);
+                                    GArray **out_sync_fail_list);
 
 gboolean nm_platform_ip_route_flush (NMPlatform *self,
                                      int addr_family,

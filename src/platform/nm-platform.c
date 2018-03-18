@@ -3856,6 +3856,38 @@ nm_platform_ip_route_get_prune_list (NMPlatform *self,
 	return routes_prune;
 }
 
+static void
+_sync_fail_list_clear_fcn (gpointer user_data)
+{
+	NMPlatformSyncFailData *data = user_data;
+
+	nmp_object_unref (data->obj);
+}
+
+GArray *
+nm_platform_sync_fail_list_new (void)
+{
+	GArray *a;
+
+	a = g_array_new (FALSE, FALSE, sizeof (NMPlatformSyncFailData));
+	g_array_set_clear_func (a, _sync_fail_list_clear_fcn);
+	return a;
+}
+
+static void
+_sync_fail_list_append (GArray **fail_list, const NMPObject *obj, NMPlatformSyncFailReason reason)
+{
+	const NMPlatformSyncFailData data = {
+		.obj = obj,
+		.reason = reason,
+	};
+
+	if (!*fail_list)
+		*fail_list = nm_platform_sync_fail_list_new ();
+	nmp_object_ref (obj);
+	g_array_append_val (*fail_list, data);
+}
+
 /**
  * nm_platform_ip_route_sync:
  * @self: the #NMPlatform instance.
@@ -3868,8 +3900,12 @@ nm_platform_ip_route_get_prune_list (NMPlatform *self,
  *   at the end of the operation. Note that if @routes contains
  *   the same route, then it will not be deleted. @routes overrules
  *   @routes_prune list.
- * @out_temporary_not_available: (allow-none): (out): routes that could
- *   currently not be synced. The caller shall keep them and try later again.
+ * @out_sync_fail_list: (allow-none): (out): if given, returns the list
+ *   of routes that could not be added. If necessary, will allocate
+ *   a GArray. The element type is NMPlatformSyncFailData. The
+ *   data instances own a reference to the NMPObject instance, and
+ *   the array's free function is set to release the reference when
+ *   destroying the array.
  *
  * Returns: %TRUE on success.
  */
@@ -3879,7 +3915,7 @@ nm_platform_ip_route_sync (NMPlatform *self,
                            int ifindex,
                            GPtrArray *routes,
                            GPtrArray *routes_prune,
-                           GPtrArray **out_temporary_not_available)
+                           GArray **out_sync_fail_list)
 {
 	const NMPlatformVTableRoute *vt;
 	gs_unref_hashtable GHashTable *routes_idx = NULL;
@@ -3978,14 +4014,12 @@ nm_platform_ip_route_sync (NMPlatform *self,
 					       nmp_object_to_string (conf_o, NMP_OBJECT_TO_STRING_PUBLIC, sbuf1, sizeof (sbuf1)),
 					       nm_platform_error_to_string (plerr, sbuf_err, sizeof (sbuf_err)));
 				} else if (   -((int) plerr) == EINVAL
-				           && out_temporary_not_available
+				           && out_sync_fail_list
 				           && _err_inval_due_to_ipv6_tentative_pref_src (self, conf_o)) {
 					_LOGD ("route-sync: ignore failure to add IPv6 route with tentative IPv6 pref-src: %s: %s",
 					       nmp_object_to_string (conf_o, NMP_OBJECT_TO_STRING_PUBLIC, sbuf1, sizeof (sbuf1)),
 					       nm_platform_error_to_string (plerr, sbuf_err, sizeof (sbuf_err)));
-					if (!*out_temporary_not_available)
-						*out_temporary_not_available = g_ptr_array_new_full (0, (GDestroyNotify) nmp_object_unref);
-					g_ptr_array_add (*out_temporary_not_available, (gpointer) nmp_object_ref (conf_o));
+					_sync_fail_list_append (out_sync_fail_list, conf_o, NM_PLATFORM_SYNC_FAIL_REASON_IP6_ROUTE_TENTATIVE_PREF_SRC);
 				} else {
 					const char *reason = "";
 

@@ -115,7 +115,7 @@ void nm_ip6_config_add_dependent_routes (NMIP6Config *self,
 gboolean nm_ip6_config_commit (const NMIP6Config *self,
                                NMPlatform *platform,
                                NMIPRouteTableSyncMode route_table_sync,
-                               GPtrArray **out_temporary_not_available);
+                               GArray **out_sync_fail_list);
 void nm_ip6_config_merge_setting (NMIP6Config *self,
                                   NMSettingIPConfig *setting,
                                   guint32 route_table,
