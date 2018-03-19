@@ -753,6 +753,10 @@ typedef enum {
 	 * a pref-src that is still tentative. Kernel doesn't allow that (rh #1457196). */
 	NM_PLATFORM_SYNC_FAIL_REASON_IP6_ROUTE_TENTATIVE_PREF_SRC,
 
+	/* the IPv4 or IPv6 route couldn't be added, probably because it specifies a
+	 * gateway, for which we have no onlink route. */
+	NM_PLATFORM_SYNC_FAIL_REASON_GATEWAY_NOT_ONLINK,
+
 } NMPlatformSyncFailReason;
 
 typedef struct {

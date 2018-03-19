@@ -4020,22 +4020,22 @@ nm_platform_ip_route_sync (NMPlatform *self,
 					       nmp_object_to_string (conf_o, NMP_OBJECT_TO_STRING_PUBLIC, sbuf1, sizeof (sbuf1)),
 					       nm_platform_error_to_string (plerr, sbuf_err, sizeof (sbuf_err)));
 					_sync_fail_list_append (out_sync_fail_list, conf_o, NM_PLATFORM_SYNC_FAIL_REASON_IP6_ROUTE_TENTATIVE_PREF_SRC);
-				} else {
-					const char *reason = "";
-
-					if (   (   -((int) plerr) == ENETUNREACH
-					        && vt->is_ip4
-					        && !!NMP_OBJECT_CAST_IP4_ROUTE (conf_o)->gateway)
-					    || (   -((int) plerr) == EHOSTUNREACH
-					        && !vt->is_ip4
-					        && !IN6_IS_ADDR_UNSPECIFIED (&NMP_OBJECT_CAST_IP6_ROUTE (conf_o)->gateway)))
-						reason = "; is the gateway directly reachable?";
-
-					_LOGW ("route-sync: failure to add IPv%c route: %s: %s%s",
+				} else if (   (   -((int) plerr) == ENETUNREACH
+				               && vt->is_ip4
+				               && !!NMP_OBJECT_CAST_IP4_ROUTE (conf_o)->gateway)
+				           || (   -((int) plerr) == EHOSTUNREACH
+				               && !vt->is_ip4
+				               && !IN6_IS_ADDR_UNSPECIFIED (&NMP_OBJECT_CAST_IP6_ROUTE (conf_o)->gateway))) {
+					_LOGD ("route-sync: ignore failure to add IPv%c route with gateway: %s: %s",
 					       vt->is_ip4 ? '4' : '6',
 					       nmp_object_to_string (conf_o, NMP_OBJECT_TO_STRING_PUBLIC, sbuf1, sizeof (sbuf1)),
-					       nm_platform_error_to_string (plerr, sbuf_err, sizeof (sbuf_err)),
-					       reason);
+					       nm_platform_error_to_string (plerr, sbuf_err, sizeof (sbuf_err)));
+					_sync_fail_list_append (out_sync_fail_list, conf_o, NM_PLATFORM_SYNC_FAIL_REASON_GATEWAY_NOT_ONLINK);
+				} else {
+					_LOGW ("route-sync: failure to add IPv%c route: %s: %s",
+					       vt->is_ip4 ? '4' : '6',
+					       nmp_object_to_string (conf_o, NMP_OBJECT_TO_STRING_PUBLIC, sbuf1, sizeof (sbuf1)),
+					       nm_platform_error_to_string (plerr, sbuf_err, sizeof (sbuf_err)));
 					success = FALSE;
 				}
 			}

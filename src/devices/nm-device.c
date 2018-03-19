@@ -7996,10 +7996,8 @@ addrconf6_start_with_link_ready (NMDevice *self)
 	}
 
 	/* Apply any manual configuration before starting RA */
-	if (!ip_config_merge_and_apply (self, AF_INET6, TRUE)) {
+	if (!ip_config_merge_and_apply (self, AF_INET6, TRUE))
 		_LOGW (LOGD_IP6, "failed to apply manual IPv6 configuration");
-		g_clear_object (&priv->con_ip_config_6);
-	}
 
 	/* FIXME: These sysctls would probably be better set by the lndp ndisc itself. */
 	switch (nm_ndisc_get_node_type (priv->ndisc)) {
@@ -10140,6 +10138,8 @@ _route_temporary_not_available_set (NMDevice *self,
 
 		if (fail_data->reason == NM_PLATFORM_SYNC_FAIL_REASON_IP6_ROUTE_TENTATIVE_PREF_SRC)
 			max_age_ms = 20000;
+		else if (fail_data->reason == NM_PLATFORM_SYNC_FAIL_REASON_GATEWAY_NOT_ONLINK)
+			max_age_ms = 60000;
 		else
 			continue;
 
@@ -10179,7 +10179,7 @@ _route_temporary_not_available_set (NMDevice *self,
 			else
 				next_timeout_ms = NM_MIN (next_timeout_ms, data->expires_at_ms);
 		}
-		if (g_hash_table_size (route_hash)) {
+		if (g_hash_table_size (route_hash) == 0) {
 			g_clear_pointer (&priv->route_temporary_not_available_x[IS_IPv4], g_hash_table_unref);
 			route_hash = NULL;
 		}
