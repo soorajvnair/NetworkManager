@@ -5959,6 +5959,225 @@ next:
 	return link_watchers;
 }
 
+/*****************************************************************************/
+
+static GBytes *
+nm_utils_duid_generate_ll (NMUtilsDuidType duid_type, int hw_type, GBytes *ll_address)
+{
+	GByteArray *buffer;
+	GDateTime *start, *now;
+	guint32 time;
+	gsize len;
+	gconstpointer addr;
+	guint16 val;
+
+	nm_assert (duid_type < NMU_DUID_LAST);
+	nm_assert (hw_type < G_MAXUINT16);
+
+	buffer = g_byte_array_new ();
+
+	/* DUID type */
+	val = duid_type;
+	g_byte_array_append (buffer, (const guint8 *)&val, 2);
+	/* HW type */
+	val = hw_type;
+	g_byte_array_append (buffer, (const guint8 *)&val, 2);
+	if (duid_type == NMU_DUID_LLT) {
+		start = g_date_time_new_utc (2000, 1, 1, 0, 0, 0);
+		now = g_date_time_new_now_utc ();
+		time = (guint32)((g_date_time_difference (now, start) / 1000000) % G_MAXUINT32);
+		g_date_time_unref (start);
+		g_date_time_unref (now);
+
+		g_byte_array_append (buffer, (const guint8 *)&time, 4);
+	}
+	addr = g_bytes_get_data (ll_address, &len);
+	g_byte_array_append (buffer, addr, len);
+
+	return g_byte_array_free_to_bytes (buffer);
+}
+
+static GBytes *
+nm_utils_duid_generate_uuid (void)
+{
+	GByteArray *buffer;
+	GChecksum *sum;
+	guint8 sum_buffer[32];
+	gsize sum_len = sizeof (buffer);
+	uuid_t uuid;
+	gs_free char *machine_id_s = NULL;
+	gs_free char *str = NULL;
+	guint16 duid_type;
+
+	duid_type = NMU_DUID_UUID;
+
+	buffer = g_byte_array_new ();
+
+	/* DUID type */
+	g_byte_array_append (buffer, (const guint8 *)&duid_type, 2);
+
+	machine_id_s = nm_utils_machine_id_read ();
+	if (nm_utils_machine_id_parse (machine_id_s, uuid)) {
+		/* Hash the machine ID so it's not leaked to the network */
+		sum = g_checksum_new (G_CHECKSUM_SHA256);
+		g_checksum_update (sum, (const guchar *) uuid, sizeof (uuid));
+		g_checksum_get_digest (sum, sum_buffer, &sum_len);
+		g_checksum_free (sum);
+	} else {
+		/* uuid is 128 bits */
+		nm_assert (sum_len > sizeof (uuid));
+		uuid_generate_random (uuid);
+		memcpy (sum_buffer, uuid, sizeof (uuid));
+	}
+
+	/* Since SHA256 is 256 bits, but UUID is 128 bits, we just take the first
+	 * 128 bits of the SHA256 as the DUID-UUID.
+	 */
+	g_byte_array_append (buffer, sum_buffer, 16);
+	return g_byte_array_free_to_bytes (buffer);
+}
+
+/**
+ * nm_utils_duid_generate:
+ * @duid_type:  the #NMUtilsDuidType DUID type to generate
+ * @ll_address: the link-layer address, needed for LLT and LL DUID types only
+ * @error:      optional error reason
+ *
+ * Returns: the generated DUID or NULL if an error occurred.
+ *
+ * Since 1.12
+ */
+GBytes *
+nm_utils_duid_generate (NMUtilsDuidType duid_type, GBytes *ll_address, GError **error)
+{
+	GBytes *duid = NULL;
+
+	g_return_val_if_fail (duid_type > NMU_DUID_UNKNOWN && duid_type < NMU_DUID_LAST, NULL);
+	g_return_val_if_fail (!error || !*error, NULL);
+
+	switch (duid_type) {
+	case NMU_DUID_LLT:
+	case NMU_DUID_LL:
+		duid = nm_utils_duid_generate_ll (duid_type, ARPHRD_ETHER, ll_address);
+		break;
+	case NMU_DUID_EN:
+		/* DUID_EN unsupported */
+		g_set_error_literal (error, 1, 0, _("generation of DUID based on EN is not supported"));
+		break;
+	case NMU_DUID_UUID:
+		duid = nm_utils_duid_generate_uuid ();
+		break;
+	default:
+		nm_assert_not_reached ();
+		break;
+	}
+
+	return duid;
+}
+
+#define NM_LIBNMCORE_DUID_FILE NMCONFDIR "/duid"
+
+/**
+ * nm_utils_duid_file_get:
+ *
+ * Returns: the global DUID file path.
+ *
+ * Since 1.12
+ */
+const char *
+nm_utils_duid_file_get (void)
+{
+	return NM_LIBNMCORE_DUID_FILE;
+}
+
+static char *
+nm_utils_duid_show (const char *duid_file, GError **error)
+{
+	char *duid_text = NULL;
+	gs_strfreev gchar **split = NULL;
+	gs_unref_bytes GBytes *duid_raw = NULL;
+
+	g_return_val_if_fail (duid_file && *duid_file, NULL);
+	g_return_val_if_fail (!error || !*error, NULL);
+
+	if (! g_file_get_contents (duid_file, &duid_text, NULL, error)) {
+		g_prefix_error (error, _("DUID read failed:"));
+		return NULL;
+	}
+
+	split = g_strsplit_set (duid_text, "\n\r", 1);
+	duid_raw = nm_utils_hexstr2bin (split[0]);
+	if (!duid_raw) {
+		g_set_error_literal (error, 1, 0, _("DUID value is invalid"));
+		g_free (duid_text);
+		return NULL;
+	}
+
+	return duid_text;
+}
+
+/**
+ * nm_utils_duid_show:
+ * @error: optional error reason
+ *
+ * Returns: the DUID read from the global DUID file or NULL if the file could not
+ *   be read or if the DUID format is invalid. The DUID should be in hex ascii
+ *   format. Optional commas separating octects are an allowed format.
+ *
+ * Since 1.12
+ */
+char *
+nm_utils_duid_show_global (GError **error)
+{
+	g_return_val_if_fail (!error || !*error, FALSE);
+
+	return nm_utils_duid_show (NM_LIBNMCORE_DUID_FILE, error);
+}
+
+static gboolean
+nm_utils_duid_write (const char *duid_file, const char *duid_text, GError **error)
+{
+	gs_unref_bytes GBytes *duid_bin = NULL;
+
+	g_return_val_if_fail (duid_file && *duid_file, FALSE);
+	g_return_val_if_fail (duid_text && *duid_text, FALSE);
+	g_return_val_if_fail (!error || !*error, FALSE);
+
+	duid_bin = nm_utils_hexstr2bin (duid_text);
+	if (!duid_bin) {
+		g_set_error_literal (error, 1, 0, _("DUID value is invalid."));
+		return FALSE;
+	}
+	if (!g_file_set_contents (duid_file, duid_text, -1, error)) {
+		g_prefix_error (error, _("DUID write failed:"));
+		return FALSE;
+	}
+	return TRUE;
+}
+
+/**
+ * nm_utils_duid_write_global:
+ * @duid_text: the DUID value in ascii hex format to be written in the global DUID file 
+ * @error: optional error reason
+ *
+ * Returns: TRUE if @duid_text was succesfully written to the global duid file or FALSE
+ *   if @duid_text was in an invalid format or if the file could not be written.
+ *   @duid_text is expected to be in hex ascii format; optionally octects could be
+ *   separated by commas.
+ *
+ * Since 1.12
+ */
+gboolean
+nm_utils_duid_write_global (const char *duid_text, GError **error)
+{
+	g_return_val_if_fail (duid_text && *duid_text, FALSE);
+	g_return_val_if_fail (!error || !*error, FALSE);
+
+	return nm_utils_duid_write (NM_LIBNMCORE_DUID_FILE, duid_text, error);
+}
+
+/*****************************************************************************/
+
 static char *
 attribute_escape (const char *src, char c1, char c2)
 {

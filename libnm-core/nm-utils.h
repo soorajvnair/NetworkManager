@@ -251,6 +251,39 @@ NMTCTfilter *nm_utils_tc_tfilter_from_str  (const char *str, GError **error);
 NM_AVAILABLE_IN_1_12
 char *nm_utils_tc_tfilter_to_str           (NMTCTfilter *tfilter, GError **error);
 
+/*****************************************************************************/
+
+/**
+ * NMUtilsDuidType:
+ * @NMU_DUID_UNKNOWN: unknown or invalid DUID, placeholder and not used
+ * @NMU_DUID_LLT: LinkLayer + Time, type 1 DUID as defined in RFC 3315
+ * @NMU_DUID_EN: Assigned by vendor, type 2 DUID as defined in RFC 3315
+ * @NMU_DUID_LL: LinkLayer based, type 3 DUID as defined in RFC 3315
+ * @NMU_DUID_UUID: UUID based, type 4 DUID, as defined in RFC 6355
+ * @NMU_DUID_LAST: invalid DUID, end placeholder
+ *
+ * Identifies the DUID type used in the DHCPv6 Client Identifier Option.
+ * Used with nm_utils_duid_generate() to specify the type of DUID to be
+ * generated.
+ **/
+typedef enum {
+	NMU_DUID_UNKNOWN = 0,
+	NMU_DUID_LLT     = 1,
+	NMU_DUID_EN      = 2,
+	NMU_DUID_LL      = 3,
+	NMU_DUID_UUID    = 4,
+	NMU_DUID_LAST
+} NMUtilsDuidType;
+
+NM_AVAILABLE_IN_1_12
+GBytes *nm_utils_duid_generate (NMUtilsDuidType duid_type, GBytes *ll_address, GError **error);
+NM_AVAILABLE_IN_1_12
+const char *nm_utils_duid_file_get (void);
+NM_AVAILABLE_IN_1_12
+char *nm_utils_duid_show_global (GError **error);
+NM_AVAILABLE_IN_1_12
+gboolean nm_utils_duid_write_global (const char *duid_text, GError **error);
+
 G_END_DECLS
 
 #endif /* __NM_UTILS_H__ */
