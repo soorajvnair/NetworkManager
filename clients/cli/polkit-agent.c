@@ -14,23 +14,19 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Copyright 2014 Red Hat, Inc.
+ * Copyright 2014, 2018 Red Hat, Inc.
  */
 
 #include "nm-default.h"
 
 #include "polkit-agent.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-#include "nm-polkit-listener.h"
 #include "common.h"
+#include "nm-polkit-listener.h"
 
 static char *
-polkit_request (const char *request,
+polkit_request (NMPolkitListener *listener,
+                const char *request,
                 const char *action_id,
                 const char *message,
                 const char *icon_name,
@@ -59,19 +55,25 @@ polkit_request (const char *request,
 }
 
 static void
-polkit_show_info (const char *text)
+polkit_show_info (NMPolkitListener *listener,
+                  const char *text,
+                  gpointer user_data)
 {
 	g_print (_("Authentication message: %s\n"), text);
 }
 
 static void
-polkit_show_error (const char *text)
+polkit_show_error (NMPolkitListener *listener,
+                   const char *text,
+                   gpointer user_data)
 {
 	g_print (_("Authentication error: %s\n"), text);
 }
 
 static void
-polkit_completed (gboolean gained_authorization)
+polkit_completed (NMPolkitListener *listener,
+                  gboolean gained_authorization,
+                  gpointer user_data)
 {
 	/* We don't print anything here. The outcome will be evident from
 	 * the operation result anyway. */
@@ -80,20 +82,19 @@ polkit_completed (gboolean gained_authorization)
 gboolean
 nmc_polkit_agent_init (NmCli* nmc, gboolean for_session, GError **error)
 {
-	PolkitAgentListener *listener;
+	static const NMPolkitListenVtable vtable = {
+		.on_request = polkit_request,
+		.on_show_info = polkit_show_info,
+		.on_show_error = polkit_show_error,
+		.on_completed = polkit_completed,
+	};
+	NMPolkitListener *listener;
 
-	g_return_val_if_fail (error == NULL || *error == NULL, FALSE);
-
-	listener = nm_polkit_listener_new (for_session, error);
+	listener = nm_polkit_listener_new (for_session, &vtable, nmc, error);
 	if (!listener)
 		return FALSE;
 
-	nm_polkit_listener_set_request_callback (NM_POLKIT_LISTENER (listener), polkit_request, nmc);
-	nm_polkit_listener_set_show_info_callback (NM_POLKIT_LISTENER (listener), polkit_show_info);
-	nm_polkit_listener_set_show_error_callback (NM_POLKIT_LISTENER (listener), polkit_show_error);
-	nm_polkit_listener_set_completed_callback (NM_POLKIT_LISTENER (listener), polkit_completed);
-
-	nmc->pk_listener = NM_POLKIT_LISTENER (listener);
+	nmc->pk_listener = listener;
 	return TRUE;
 }
 
@@ -106,7 +107,7 @@ nmc_polkit_agent_fini (NmCli* nmc)
 gboolean
 nmc_start_polkit_agent_start_try (NmCli *nmc)
 {
-	GError *error = NULL;
+	gs_free_error GError *error = NULL;
 
 	/* We don't register polkit agent at all when running non-interactively */
 	if (!nmc->ask)
@@ -115,7 +116,6 @@ nmc_start_polkit_agent_start_try (NmCli *nmc)
 	if (!nmc_polkit_agent_init (nmc, FALSE, &error)) {
 		g_printerr (_("Warning: polkit agent initialization failed: %s\n"),
 		            error->message);
-		g_error_free (error);
 		return FALSE;
 	}
 	return TRUE;

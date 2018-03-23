@@ -39,6 +39,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define WITH_POLKIT_AGENT 0
+
 #if WITH_POLKIT_AGENT
 
 /*****************************************************************************/
@@ -363,14 +365,14 @@ nm_polkit_listener_init (NMPolkitListener *agent)
  *
  * Returns: a new #NMPolkitListener
  */
-PolkitAgentListener *
+NMPolkitAgentListener *
 nm_polkit_listener_new (gboolean for_session, GError **error)
 {
 	PolkitAgentListener *listener;
 	PolkitSubject* session;
 	NMPolkitListenerPrivate *priv;
 
-	g_return_val_if_fail (error == NULL || *error == NULL, NULL);
+	g_return_val_if_fail (!error || !*error, NULL);
 
 	listener = g_object_new (NM_TYPE_POLKIT_LISTENER, NULL);
 	priv = NM_POLKIT_LISTENER_GET_PRIVATE (listener);
