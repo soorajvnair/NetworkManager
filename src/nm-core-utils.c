@@ -2694,10 +2694,10 @@ nm_utils_machine_id_read (void)
 
 	/* Get the machine ID from /etc/machine-id; it's always in /etc no matter
 	 * where our configured SYSCONFDIR is.  Alternatively, it might be in
-	 * LOCALSTATEDIR /lib/dbus/machine-id.
+	 * /var/lib/dbus/machine-id.
 	 */
 	if (   !g_file_get_contents ("/etc/machine-id", &contents, NULL, NULL)
-	    && !g_file_get_contents (LOCALSTATEDIR "/lib/dbus/machine-id", &contents, NULL, NULL))
+	    && !g_file_get_contents ("/var/lib/dbus/machine-id", &contents, NULL, NULL))
 		return FALSE;
 
 	contents = g_strstrip (contents);
