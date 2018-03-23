@@ -644,20 +644,6 @@ else
 	AC_DEFINE(WITH_POLKIT, 0, [whether to compile polkit support])
 fi
 
-PKG_CHECK_MODULES(POLKIT, [polkit-agent-1 >= 0.97], [have_pk_agent=yes],[have_pk_agent=no])
-AC_ARG_ENABLE(polkit-agent,
-              AS_HELP_STRING([--enable-polkit-agent], [enable polkit agent for clients]),
-              [enable_polkit_agent=${enableval}], [enable_polkit_agent=${have_pk_agent}])
-if (test "${enable_polkit_agent}" = "yes"); then
-	if test x"$have_pk_agent" = x"no"; then
-		AC_MSG_ERROR(Polkit agent is required)
-	fi
-	AC_DEFINE(WITH_POLKIT_AGENT, 1, [Define if you have polkit agent])
-else
-	AC_DEFINE(WITH_POLKIT_AGENT, 0, [Define if you have polkit agent])
-fi
-AM_CONDITIONAL(WITH_POLKIT_AGENT, test "${enable_polkit_agent}" = "yes")
-
 AC_ARG_ENABLE(modify-system, AS_HELP_STRING([--enable-modify-system], [Allow users to modify system connections]))
 if test "${enable_modify_system}" = "yes"; then
 	NM_MODIFY_SYSTEM_POLICY="yes"
@@ -1344,7 +1330,6 @@ if test "${enable_polkit}" = "yes"; then
 else
 	echo  "  policykit: no"
 fi
-echo "  polkit agent: ${enable_polkit_agent}"
 echo "  selinux: $have_selinux"
 echo "  systemd-journald: $have_systemd_journal (default: logging.backend=${nm_config_logging_backend_default})"
 echo "  hostname persist: ${hostname_persist}"

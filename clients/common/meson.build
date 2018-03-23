@@ -1,7 +1,5 @@
 common_inc = include_directories('.')
 
-nm_polkit_listener = files('nm-polkit-listener.c')
-
 deps = [
   libnm_dep,
   nm_core_dep

@@ -13,27 +13,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2014 Red Hat, Inc.
+ * Copyright 2014 - 2018 Red Hat, Inc.
  */
 
 #ifndef __NM_POLKIT_LISTENER_H__
 #define __NM_POLKIT_LISTENER_H__
-
-struct _NMPolkitListener;
-
-typedef struct _NMPolkitListener NMPolkitListener;
-
-#if WITH_POLKIT_AGENT
-
-#define POLKIT_AGENT_I_KNOW_API_IS_SUBJECT_TO_CHANGE
-#include <polkitagent/polkitagent.h>
-
-#define NM_TYPE_POLKIT_LISTENER            (nm_polkit_listener_get_type ())
-#define NM_POLKIT_LISTENER(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), NM_TYPE_POLKIT_LISTENER, NMPolkitListener))
-#define NM_POLKIT_LISTENER_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), NM_TYPE_POLKIT_LISTENER, NMPolkitListenerClass))
-#define NM_IS_POLKIT_LISTENER(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), NM_TYPE_POLKIT_LISTENER))
-#define NM_IS_POLKIT_LISTENER_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), NM_TYPE_POLKIT_LISTENER))
-#define NM_POLKIT_LISTENER_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), NM_TYPE_POLKIT_LISTENER, NMPolkitListenerClass))
 
 /**
  * NMPolkitListenerOnRequestFunc:
@@ -55,6 +39,7 @@ typedef char * (*NMPolkitListenerOnRequestFunc) (const char *request,
                                                  const char *user,
                                                  gboolean echo_on,
                                                  gpointer user_data);
+
 /**
  * NMPolkitListenerOnShowInfoFunc:
  * @text: the info text from polkit
@@ -62,6 +47,7 @@ typedef char * (*NMPolkitListenerOnRequestFunc) (const char *request,
  * Called as a result of show-info signal by polkit.
  */
 typedef void (*NMPolkitListenerOnShowInfoFunc) (const char *text);
+
 /**
  * NMPolkitListenerOnShowErrorFunc:
  * @text: the error text from polkit
@@ -69,6 +55,7 @@ typedef void (*NMPolkitListenerOnShowInfoFunc) (const char *text);
  * Called as a result of show-error signal by polkit.
  */
 typedef void (*NMPolkitListenerOnShowErrorFunc) (const char *text);
+
 /**
  * NMPolkitListenerCompletedFunc:
  * @gained_authorization: whether the autorization was successful
@@ -77,18 +64,23 @@ typedef void (*NMPolkitListenerOnShowErrorFunc) (const char *text);
  */
 typedef void (*NMPolkitListenerOnCompletedFunc) (gboolean gained_authorization);
 
+/*****************************************************************************/
 
-struct _NMPolkitListener {
-	PolkitAgentListener parent;
-};
+#define NM_TYPE_POLKIT_LISTENER            (nm_polkit_listener_get_type ())
+#define NM_POLKIT_LISTENER(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), NM_TYPE_POLKIT_LISTENER, NMPolkitListener))
+#define NM_POLKIT_LISTENER_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), NM_TYPE_POLKIT_LISTENER, NMPolkitListenerClass))
+#define NM_IS_POLKIT_LISTENER(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), NM_TYPE_POLKIT_LISTENER))
+#define NM_IS_POLKIT_LISTENER_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), NM_TYPE_POLKIT_LISTENER))
+#define NM_POLKIT_LISTENER_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), NM_TYPE_POLKIT_LISTENER, NMPolkitListenerClass))
 
-typedef struct {
-	PolkitAgentListenerClass parent;
-} NMPolkitListenerClass;
+typedef struct _NMPolkitListener NMPolkitListener;
+typedef struct _NMPolkitListenerClass NMPolkitListenerClass;
 
 GType nm_polkit_listener_get_type (void);
 
-PolkitAgentListener* nm_polkit_listener_new     (gboolean for_session, GError **error);
+NMPolkitListener *nm_polkit_listener_new (gboolean for_session,
+                                          GError **error);
+
 void nm_polkit_listener_set_request_callback    (NMPolkitListener *self,
                                                  NMPolkitListenerOnRequestFunc request_callback,
                                                  gpointer request_callback_data);
@@ -98,7 +90,5 @@ void nm_polkit_listener_set_show_error_callback (NMPolkitListener *self,
                                                  NMPolkitListenerOnShowErrorFunc show_error_callback);
 void nm_polkit_listener_set_completed_callback  (NMPolkitListener *self,
                                                  NMPolkitListenerOnCompletedFunc completed_callback);
-
-#endif
 
 #endif /* __NM_POLKIT_LISTENER_H__ */

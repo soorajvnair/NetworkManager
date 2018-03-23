@@ -18,7 +18,6 @@ option('session_tracking', type: 'combo', choices: ['systemd', 'elogind', 'no'],
 option('suspend_resume', type: 'boolean', value: true, description: 'Build NetworkManager with specific suspend/resume support')
 option('polkit', type: 'combo', choices: ['yes', 'no', 'disabled'], value: 'yes', description: 'set default value for auth-polkit configuration option. This value can be overwritten by NM configuration. \'disabled\' compiles NM without any support')
 option('modify_system', type: 'boolean', value: false, description: 'Allow users to modify system connections')
-option('polkit_agent', type: 'boolean', value: false, description: 'enable polkit agent for clients')
 option('selinux', type: 'boolean', value: true, description: 'Build with SELinux')
 option('systemd_journal', type: 'boolean', value: true, description: 'Use systemd journal for logging')
 option('config_logging_backend_default', type: 'combo', choices: ['default', 'debug', 'syslog', 'journal', 'journal-syslog-style'], value: 'default', description: 'Default value for logging.backend')

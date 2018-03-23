@@ -7,6 +7,7 @@ install_data(
 )
 
 sources = files(
+  '../common/nm-polkit-listener.h',
   'agent.c',
   'common.c',
   'connections.c',
@@ -30,12 +31,6 @@ cflags = clients_cflags + [
   '-DG_LOG_DOMAIN="@0@"'.format(name),
   '-DNMCLI_LOCALEDIR="@0@"'.format(nm_localedir)
 ]
-
-if enable_polkit_agent
-  sources += nm_polkit_listener
-
-  deps += polkit_agent_dep
-endif
 
 executable(
   name,

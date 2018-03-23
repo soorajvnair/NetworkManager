@@ -29,7 +29,6 @@
 #include "nm-polkit-listener.h"
 #include "common.h"
 
-#if WITH_POLKIT_AGENT
 static char *
 polkit_request (const char *request,
                 const char *action_id,
@@ -77,12 +76,10 @@ polkit_completed (gboolean gained_authorization)
 	/* We don't print anything here. The outcome will be evident from
 	 * the operation result anyway. */
 }
-#endif
 
 gboolean
 nmc_polkit_agent_init (NmCli* nmc, gboolean for_session, GError **error)
 {
-#if WITH_POLKIT_AGENT
 	PolkitAgentListener *listener;
 
 	g_return_val_if_fail (error == NULL || *error == NULL, FALSE);
@@ -97,22 +94,18 @@ nmc_polkit_agent_init (NmCli* nmc, gboolean for_session, GError **error)
 	nm_polkit_listener_set_completed_callback (NM_POLKIT_LISTENER (listener), polkit_completed);
 
 	nmc->pk_listener = NM_POLKIT_LISTENER (listener);
-#endif
 	return TRUE;
 }
 
 void
 nmc_polkit_agent_fini (NmCli* nmc)
 {
-#if WITH_POLKIT_AGENT
 	g_clear_object (&nmc->pk_listener);
-#endif
 }
 
 gboolean
 nmc_start_polkit_agent_start_try (NmCli *nmc)
 {
-#if WITH_POLKIT_AGENT
 	GError *error = NULL;
 
 	/* We don't register polkit agent at all when running non-interactively */
@@ -125,6 +118,5 @@ nmc_start_polkit_agent_start_try (NmCli *nmc)
 		g_error_free (error);
 		return FALSE;
 	}
-#endif
 	return TRUE;
 }

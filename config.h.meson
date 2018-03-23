@@ -213,9 +213,6 @@
 /* whether to compile polkit support */
 #mesondefine WITH_POLKIT
 
-/* Define if you have polkit agent */
-#mesondefine WITH_POLKIT_AGENT
-
 /* Define if you have PPP support */
 #mesondefine WITH_PPP
 

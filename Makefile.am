@@ -3461,6 +3461,8 @@ if BUILD_NMCLI
 bin_PROGRAMS += clients/cli/nmcli
 
 clients_cli_nmcli_SOURCES = \
+	clients/common/nm-polkit-listener.c \
+	clients/common/nm-polkit-listener.h \
 	clients/cli/common.c \
 	clients/cli/common.h \
 	clients/cli/utils.c \
@@ -3495,14 +3497,6 @@ clients_cli_nmcli_LDADD = \
 	clients/common/libnmc.la \
 	$(GLIB_LIBS) \
 	$(READLINE_LIBS)
-
-if WITH_POLKIT_AGENT
-clients_cli_nmcli_CPPFLAGS += $(POLKIT_CFLAGS)
-clients_cli_nmcli_SOURCES += \
-	clients/common/nm-polkit-listener.c \
-	clients/common/nm-polkit-listener.h
-clients_cli_nmcli_LDADD += $(POLKIT_LIBS)
-endif
 
 clients_cli_nmcli_LDFLAGS = \
 	-Wl,--version-script="$(srcdir)/linker-script-binary.ver" \

@@ -453,12 +453,6 @@ config_h.set10('WITH_POLKIT', enable_polkit)
 
 enable_modify_system = get_option('modify_system')
 
-enable_polkit_agent = get_option('polkit_agent')
-if enable_polkit_agent
-  polkit_agent_dep = dependency('polkit-agent-1', version: '>= 0.97')
-endif
-config_h.set10('WITH_POLKIT_AGENT', enable_polkit_agent)
-
 # crypto
 crypto = get_option('crypto')
 if crypto == 'nss'
