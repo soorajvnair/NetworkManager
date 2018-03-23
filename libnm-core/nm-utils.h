@@ -125,6 +125,9 @@ GVariant  *nm_utils_ip_routes_to_variant (GPtrArray *routes);
 GPtrArray *nm_utils_ip_routes_from_variant (GVariant *value,
                                             int family);
 
+gboolean  nm_utils_machine_id_parse (const char *id_str, /*uuid_t*/ guchar *out_uuid);
+char     *nm_utils_machine_id_read (void);
+
 char *nm_utils_uuid_generate (void);
 
 gboolean nm_utils_file_is_certificate (const char *filename);

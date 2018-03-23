@@ -1354,5 +1354,7 @@ global:
 	nm_setting_vpn_get_secret_keys;
 	nm_setting_wireless_security_get_fils;
 	nm_setting_wireless_security_fils_get_type;
+	nm_utils_machine_id_parse;
+	nm_utils_machine_id_read;
 	nm_vpn_service_plugin_shutdown;
 } libnm_1_10_0;
