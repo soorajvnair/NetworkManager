@@ -2184,9 +2184,11 @@ nm_ip6_config_add_search (NMIP6Config *self, const char *new)
 	search = g_strdup (new);
 
 	/* Remove trailing dot as it has no effect */
-	len = strlen (search);
-	if (search[len - 1] == '.')
-		search[len - 1] = 0;
+	if (!nm_streq (search, "~.")) {
+		len = strlen (search);
+		if (search[len - 1] == '.')
+			search[len - 1] = 0;
+	}
 
 	if (!search[0]) {
 		g_free (search);
